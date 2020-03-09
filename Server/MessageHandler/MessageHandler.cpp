@@ -196,11 +196,11 @@ string MessageHandler::handle_att_msg2(string msg2_str)
         else
         {
             msg3_json["status"] = "successfully";
-            msg3_json["mac"] = string(hexstring(p_msg3->mac, SGX_MAC_SIZE), SGX_MAC_SIZE);
-            msg3_json["gax"] = string(hexstring(p_msg3->g_a.gx, SGX_ECP256_KEY_SIZE), SGX_ECP256_KEY_SIZE);
-            msg3_json["gay"] = string(hexstring(p_msg3->g_a.gy, SGX_ECP256_KEY_SIZE), SGX_ECP256_KEY_SIZE);
-            msg3_json["ps_sec_prop"] = string(hexstring(&p_msg3->ps_sec_prop, 256), 256);
-            msg3_json["quote"] = string(hexstring(&p_msg3->quote, quote_size), quote_size);
+            msg3_json["mac"] = string(hexstring(p_msg3->mac, SGX_MAC_SIZE));
+            msg3_json["gax"] = string(hexstring(p_msg3->g_a.gx, SGX_ECP256_KEY_SIZE));
+            msg3_json["gay"] = string(hexstring(p_msg3->g_a.gy, SGX_ECP256_KEY_SIZE));
+            msg3_json["ps_sec_prop"] = string(hexstring(&p_msg3->ps_sec_prop, 256));
+            msg3_json["quote"] = string(hexstring(&p_msg3->quote, quote_size));
 
             printf("\n======== Msg3 Details ========\n");
             printf("status          = %s\n", msg3_json["status"].ToString().c_str());
