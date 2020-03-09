@@ -10,6 +10,9 @@ const {
     buf2hexString,
     hexString2Buffer,
 } = require("./utils");
+const {
+    signPriKey,
+} = require("./config")
 
 const crypto = require("crypto")
 const aesCmac = require("node-aes-cmac").aesCmac;
@@ -34,13 +37,6 @@ function handleEcdhParam(decArray) {
 
 function getMsg2(ecPublicKey, session) {
     /* Get GAX */
-    //const gax = switchEndian("04771151353fb74ff97de214f1b5795fcfd4fd62d0f662371d0e21fbf9df1020")
-    //const gay = switchEndian("e391d3c437c83ad50f1359b9c3235ae86ebcf8a7d117b7cfa5dd2a292dbf40e2")
-    //const gbx = "b8810357841249f28029c3477dd051aa617061edabfa0dd3574731c355295f8c"
-    //const gby = "abca295ab9fdc4ff4fa17147ec67f72b177658029218d32cea2c5f363f3da01f"
-    //const priKey = "DF43CC1A7ED4A6259EF2634F32FB489D3D8D6F276AD91C52FCE90FAE19B3B6A6"
-    //const key = ec.keyFromPrivate(priKey)
-    
     const gax = ecPublicKey.X
     const gay = ecPublicKey.Y
     const key = ec.genKeyPair()
@@ -48,14 +44,7 @@ function getMsg2(ecPublicKey, session) {
     const gby = switchEndian(key.getPublic().getY().toString(16))
 
     /* Generate msg2 */
-    console.log("===== gax", gax)
-    console.log("===== gay", gay)
-    console.log("===== key publicx", key.getPublic().getX().toString(16))
-    console.log("===== key publicy", key.getPublic().getY().toString(16))
-    const signPriKey = "018C03D1533457ADEAAEB6653B6A861FEC879C4311DE663BCEA1522DBB6CE790"
     const signKey = ec.keyFromPrivate(signPriKey)
-    console.log("===== sign publicx", signKey.getPublic().getX().toString(16))
-    console.log("===== sign publicy", signKey.getPublic().getY().toString(16))
     // Get server public key
     const sgxPubKey = {
         x: gax,
@@ -67,33 +56,33 @@ function getMsg2(ecPublicKey, session) {
      * Generate smk
      * */ 
     const sharedKey = switchEndian(toHex(key.derive(sgxKey.getPublic())))
-    console.log("sharedKey",sharedKey)
+    //console.log("sharedKey          = ",sharedKey)
     const iv = Buffer.alloc(16, 0)
     const kdk = aesCmac(iv, hexString2Buffer(sharedKey))
-    console.log("======kdk",kdk)
+    //console.log("kdk                = ",kdk)
     // derive smk
     const message = [0x01,'S'.charCodeAt(0),'M'.charCodeAt(0),'K'.charCodeAt(0),0x00,0x80,0x00]
     const smk = aesCmac(hexString2Buffer(kdk), Buffer.from(message))
-    console.log("======smk",smk)
+    //console.log("smk                = ",smk)
 
     /**
      * @desc get signature: sign publck keys with my private key
      */
     const GBA = gbx+gby+switchEndian(gax)+switchEndian(gay)
-    console.log("=====GBA",GBA)
+    //console.log("GBA                = ",GBA)
     const digest = crypto.createHash('sha256')
             .update(hexString2Buffer(GBA))
             .digest()
-    console.log("===== digest", buf2hexString(digest))
+    //console.log("digest             = ", buf2hexString(digest))
 
     // use elliptic
     const sig = signKey.sign(digest)
     const SigSPX = switchEndian(toHex(sig.r))
     const SigSPY = switchEndian(toHex(sig.s))
-    console.log("===== unreverse SigSPX", sig.r.toString(16))
-    console.log("===== unreverse SigSPY", sig.s.toString(16))
-    console.log("===== SigSPX", SigSPX)
-    console.log("===== SigSPY", SigSPY)
+    //console.log("unreverse SigSPX   = ", sig.r.toString(16))
+    //console.log("unreverse SigSPY   = ", sig.s.toString(16))
+    //console.log("SigSPX             = ", SigSPX)
+    //console.log("SigSPY             = ", SigSPY)
 
     /* 
      * derive CMACsmk 
@@ -102,8 +91,7 @@ function getMsg2(ecPublicKey, session) {
     const KDF_ID = "0100"
     const A = gbx + gby + SPID + QUOTE_TYPE + KDF_ID + SigSPX + SigSPY
     const CMACsmk = aesCmac(hexString2Buffer(smk), hexString2Buffer(A))
-    console.log("=====A", A)
-    console.log("=====CMACsmk", CMACsmk)
+    //console.log("CMACsmk            = ", CMACsmk)
 
     /**
      * @Set session info
@@ -119,6 +107,7 @@ function getMsg2(ecPublicKey, session) {
    */
     return {
         type: "msg2",
+        status: "successfully",
         gbx: gbx,
         gby: gby,
         quoteType: QUOTE_TYPE,

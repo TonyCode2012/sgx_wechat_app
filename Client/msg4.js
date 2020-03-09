@@ -14,7 +14,6 @@ const Base64 = require("js-base64").Base64
 
 async function getMsg4(msg3, session) {
     // Compare public key
-    console.log("===== session", session)
     const gax = switchEndian(msg3.gax)
     const gay = switchEndian(msg3.gay)
     if (gax != session.ga.gax || gay != session.ga.gay)
@@ -45,16 +44,14 @@ async function getMsg4(msg3, session) {
     const body = {
         "isvEnclaveQuote": b64quote
     }
-    console.log("===== b64quote",b64quote)
-    console.log("===== iasurl",iasBaseUrl+"/report")
-    console.log("===== iasheader",iasHeader)
+    console.log("===== Sending quote to IAS... ======")
     const iasResponse = await httpSend(iasBaseUrl+"/report",iasHeader,body)
     if (iasResponse.statusCode != 200)
     {
         console.log("Request IAS service failed!")
         return null
     }
-    console.log("\n===== Verify Quote successfully =====\n")
+    console.log("\n===== Verify Quote successfully =====")
     console.log(iasResponse.body)
 }
 

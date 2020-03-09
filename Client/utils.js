@@ -71,7 +71,6 @@ function httpSend(url,header,data) {
     {
         header = {"content-type": "application/json"}
     }
-    console.log("===== header", header)
     return new Promise(function(resolve, reject) {
         request({
             url: url,
@@ -84,11 +83,14 @@ function httpSend(url,header,data) {
                 //console.log("successful:",response)
                 resolve({
                     body: body,
-                    response: response
+                    statusCode: response.statusCode,
+                    response: response,
                 })
             } else {
                 //console.log("failed:",response)
-                reject(response)
+                reject({
+                    statusCode: response.statusCode,
+                })
             }
         });
     })
