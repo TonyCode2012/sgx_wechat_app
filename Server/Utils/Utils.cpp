@@ -184,3 +184,21 @@ uint8_t *switch_endian(const uint8_t *src, size_t sz)
 
     return des;
 }
+
+int from_hexstring (unsigned char *dest, const void *vsrc, size_t len)
+{
+	size_t i;
+	const unsigned char *src= (const unsigned char *) vsrc;
+
+	for (i= 0; i<len; ++i) {
+		unsigned int v;
+#ifdef _WIN32
+		if ( sscanf_s(&src[i * 2], "%2xhh", &v) == 0 ) return 0;
+#else
+		if ( sscanf((const char*)&src[i*2], "%2xhh", &v) == 0 ) return 0;
+#endif
+		dest[i]= (unsigned char) v;
+	}
+
+	return 1;
+}

@@ -1,10 +1,3 @@
-//const {
-//  SPID,
-//  SIGRL,
-//  SIZE_SIGRL,
-//  AES_CMAC_KDF_ID,
-//  SAMPLE_QUOTE_LINKABLE_SIGNATURE
-//} =  require("./ecConstants");
 const SPID = "FEF23C7E73A379823CE71FF289CFBC07";
 const SIGRL = 0;
 const SIZE_SIGRL = 0;
@@ -41,57 +34,48 @@ function handleEcdhParam(decArray) {
 }
 
 
-function getMsg2(ecPublicKey) {
-    //const GAX = hexStringToArray(ecPublicKey.X,2)
-    //const GAY = hexStringToArray(ecPublicKey.Y,2)
-    const gax_o = "8f6405f2bc7b7d3c66eb9dfcdaeb1ab19867d528b85426fab9f4459d3f6a715e"
-    const gay_o = "60bb87cc172220380294e0ddbb8e92ea2ba63a3eb99ebd6c659a07c8d39977ed"
-    const gax = switchEndian(gax_o)
-    const gay = switchEndian(gay_o)
-    const GAX = hexStringToArray(gax,2)
-    const GAY = hexStringToArray(gay,2)
+function getMsg2(ecPublicKey, session) {
+    /* Get GAX */
+    //const gax = switchEndian("04771151353fb74ff97de214f1b5795fcfd4fd62d0f662371d0e21fbf9df1020")
+    //const gay = switchEndian("e391d3c437c83ad50f1359b9c3235ae86ebcf8a7d117b7cfa5dd2a292dbf40e2")
+    //const gbx = "b8810357841249f28029c3477dd051aa617061edabfa0dd3574731c355295f8c"
+    //const gby = "abca295ab9fdc4ff4fa17147ec67f72b177658029218d32cea2c5f363f3da01f"
+    //const priKey = "DF43CC1A7ED4A6259EF2634F32FB489D3D8D6F276AD91C52FCE90FAE19B3B6A6"
+    //const key = ec.keyFromPrivate(priKey)
+    
+    const gax = ecPublicKey.X
+    const gay = ecPublicKey.Y
+    const key = ec.genKeyPair()
+    const gbx = switchEndian(key.getPublic().getX().toString(16))
+    const gby = switchEndian(key.getPublic().getY().toString(16))
 
     /* Generate msg2 */
-    const gbx = "68d4d7c82d4dd8a72de568da4989fc95076745a13a612164c30a208958ef0485"
-    const gby = "55edd100abc57249157f174c78cd4863a5daa161b812a0f3e19eb0a36fce06e7"
-    //const gbx = switchEndian("38b9fc97433e342ada6d1aacf8b5eec04515ca4ef4ef4602fdb436facf0a4b7d")
-    //const gby = switchEndian("a1bb2339bd6b39965d08d4b31bd9d2a875cf165e6f00895779691cfcc9208a1a")
-    const GBX = hexStringToArray(gbx,2)
-    const GBY = hexStringToArray(gby,2)
-    const pubKey = {
-        x: gbx,
-        y: gby,
-    }
+    console.log("===== gax", gax)
+    console.log("===== gay", gay)
+    console.log("===== key publicx", key.getPublic().getX().toString(16))
+    console.log("===== key publicy", key.getPublic().getY().toString(16))
     //const signPriKey = "90e76cbb2d52a1ce3b66de11439c87ec1f866a3b65b6aeeaad573453d1038c01"
-    const signPriKey = "18C03D1533457ADEAAEB6653B6A861FEC879C4311DE663BCEA1522DBB6CE790"
+    //const signPriKey = [
+	//0x90, 0xe7, 0x6c, 0xbb, 0x2d, 0x52, 0xa1, 0xce,
+	//0x3b, 0x66, 0xde, 0x11, 0x43, 0x9c, 0x87, 0xec,
+	//0x1f, 0x86, 0x6a, 0x3b, 0x65, 0xb6, 0xae, 0xea,
+	//0xad, 0x57, 0x34, 0x53, 0xd1, 0x03, 0x8c, 0x01]
     //const signPriKey = switchEndian("18C03D1533457ADEAAEB6653B6A861FEC879C4311DE663BCEA1522DBB6CE790")
-    const priKey = "85DDC3B7C45F40F7DD97C543A61524B6C6E34975C68C0AA981F7363447BB0DD4"
+    const signPriKey = "018C03D1533457ADEAAEB6653B6A861FEC879C4311DE663BCEA1522DBB6CE790"
     const signKey = ec.keyFromPrivate(signPriKey)
-    const key = ec.keyFromPrivate(priKey)
-    //const key_pub = ec.keyFromPublic(pubKey)
-    console.log("=====signpubkey",signKey.getPublic().getX().toString(16))
-    console.log("=====signpubkey",signKey.getPublic().getY().toString(16))
-    //console.log("=====pubkey",key.getPublic())
-    //const key = ec.genKeyPair()
-    const MY_PRIVATE_KEY = key.getPrivate()
-    const MY_PUBLIC_KEY = key.getPublic()
-    //const GBX = hexStringToArray(MY_PUBLIC_KEY.getX().toString(16),2)
-    //const GBY = hexStringToArray(MY_PUBLIC_KEY.getY().toString(16),2)
-    //console.log("pubkey:",MY_PUBLIC_KEY.getX())
-
+    console.log("===== sign publicx", signKey.getPublic().getX().toString(16))
+    console.log("===== sign publicy", signKey.getPublic().getY().toString(16))
     // Get server public key
-    const serverPubKey = {
-        //x: ecPublicKey.X,
-        //y: ecPublicKey.Y
+    const sgxPubKey = {
         x: gax,
         y: gay,
     }
-    const serverKey = ec.keyFromPublic(serverPubKey,'hex')
-    //console.log("server key",serverKey)
+    const sgxKey = ec.keyFromPublic(sgxPubKey,'hex')
 
-    // derive kdk
-    const sharedKey = switchEndian(toHex(key.derive(serverKey.getPublic())))
-    //console.log("sharedKey",key.derive(serverKey.getPublic()))
+    /**
+     * Generate smk
+     * */ 
+    const sharedKey = switchEndian(toHex(key.derive(sgxKey.getPublic())))
     console.log("sharedKey",sharedKey)
     const iv = Buffer.alloc(16, 0)
     //const cipher = crypto.createCipheriv('aes-128-cbc', iv, iv)
@@ -115,22 +99,32 @@ function getMsg2(ecPublicKey) {
     /**
      * @desc get signature: sign publck keys with my private key
      */
-    const GBA = gbx+gby+gax_o+gay_o
+    const GBA = gbx+gby+switchEndian(gax)+switchEndian(gay)
     console.log("=====GBA",GBA)
     const digest = crypto.createHash('sha256')
             .update(hexString2Buffer(GBA))
             .digest()
-    console.log("===== digest",digest)
-    console.log("===== digest",buf2hexString(digest))
-    
-    const rs = require('jsrsasign')
-    const KJUREC = new rs.KJUR.crypto.ECDSA({'curve': 'prime256v1'})
-    const KJURSIG = KJUREC.signHex(buf2hexString(digest), signPriKey)
-    console.log("===== KJURSIG:", KJURSIG)
+    console.log("===== digest", buf2hexString(digest))
 
-    const sign_t = crypto.createSign('SHA256')
-    sign_t.write(GBA)
-    sign_t.end()
+    // use elliptic
+    const sig = signKey.sign(digest)
+    const SigSPX = switchEndian(toHex(sig.r))
+    const SigSPY = switchEndian(toHex(sig.s))
+    console.log("===== unreverse SigSPX", sig.r.toString(16))
+    console.log("===== unreverse SigSPY", sig.s.toString(16))
+    console.log("===== SigSPX", SigSPX)
+    console.log("===== SigSPY", SigSPY)
+    
+    // user jsrsasign
+    //const rs = require('jsrsasign')
+    //const KJUREC = new rs.KJUR.crypto.ECDSA({'curve': 'prime256v1'})
+    //const KJURSIG = KJUREC.signHex(buf2hexString(digest), signPriKey)
+    //console.log("===== KJURSIG:", KJURSIG)
+
+    // use crypto
+    //const sign_t = crypto.createSign('SHA256')
+    //sign_t.write(GBA)
+    //sign_t.end()
     //const ttt = '-----BEGIN EC PRIVATE KEY-----\n' +
     //    'MD4CAQEEIBjAPRUzRXrequtmU7aoYf7IecQxHeZjvOoVItu2znkAoAoGCCqGSM49\n' +
     //    ' AwEHoQsDCQAAC+wAAAAMAA==\n' +
@@ -138,80 +132,68 @@ function getMsg2(ecPublicKey) {
     //const tmp3 = sign_t.sign(ttt, 'hex')
     //const ttt = crypto.createPrivateKey(signPriKey)
     //const tmp3 = sign_t.sign(ttt, 'hex')
-    const my_keypair = crypto.generateKeyPairSync('ec', {
-        namedCurve:'P-256',
-        //namedCurve:'prime256v1',
-        privateKeyEncoding : {
-            type: 'pkcs8',
-            format: 'pem'
-        }
-    })
-    const pems = ecUtils.generatePem({
-        curveName: 'prime256v1',
-        privateKey: hexString2Buffer(toHex(signKey.getPrivate())),
-        publicKey: hexString2Buffer(toHex(signKey.getPublic()))
-    })
+    //const my_keypair = crypto.generateKeyPairSync('ec', {
+    //    namedCurve:'P-256',
+    //    privateKeyEncoding : {
+    //        type: 'pkcs8',
+    //        format: 'pem'
+    //    }
+    //})
+    //const pems = ecUtils.generatePem({
+    //    curveName: 'prime256v1',
+    //    privateKey: hexString2Buffer(toHex(signKey.getPrivate())),
+    //    publicKey: hexString2Buffer(toHex(signKey.getPublic()))
+    //})
     //console.log("===== tmp3:", my_keypair.privateKey)
     //console.log("===== tmp3:", pems.privateKey)
     //console.log("===== tmp3:", tmp3)
 
-    //const sig = signKey.sign(Array.from(digest))
-    const sig = signKey.sign(Array.from(digest))
-    const SigSPX = toHex(sig.r)
-    const SigSPY = toHex(sig.s)
-    //console.log("SigSPX", sig.r.toString(16))
-    //console.log("SigSPX", buf2hexString(sig.toDER()))
-    console.log("===== SigSPX", bigInt(sig.r).toString(16))
-    console.log("===== SigSPY", sig.s.toString(16))
-    console.log("===== SigSPY", bigInt('387a059f2330aff862bcf7cd572f67f596ad77ee6b4f0bd1e0e06de9d6f90d93', 16).toString(16))
-    //console.log("=====   elliptic",sig.r)
-    //console.log("=====   elliptic",sig.s)
-    //const sig = signKey.sign(Buffer.from(hexStringToArray(digest,2)))
-    //const sig = signKey.sign(Buffer.from(hexStringToArray(GBA,2)))
-    //const sign_x = key.sign(GBAY);
-    //const sign_y = key.sign(GBAY);
-    //const SigSPX = sign_x.toDER();
-    //const SigSPY = sign_y.toDER();
+    // use ethereumjs
+    //const { keccak256, ecsign,isValidPrivate,privateToPublic} = require('ethereumjs-util')
+    //const ecsig = ecsign(digest, hexString2Buffer(signPriKey))
+    //console.log("===== ecsigr", buf2hexString(ecsig.r))
+    //console.log("===== ecsigs", buf2hexString(ecsig.s))
     
-    eccrypto.sign(hexString2Buffer(signPriKey), digest).then(function(sig){
-        console.log("===== tmp:", buf2hexString(sig))
-    })
-    //const tmp2 = ec.sign(digest, hexString2Buffer(signPriKey), {canonical:true})
-    const tmp2 = ec.sign(Array.from(digest), signPriKey)
-    console.log("=====   tmp2",toHex(tmp2.r))
-    console.log("=====   tmp2",toHex(tmp2.s))
-    // derive CMACsmk
-    const QUOTE_TYPE = [0x00,0x01]
-    const KDF_ID = [0x00,0x01]
-    const SPID_ARRY = hexStringToArray(SPID, 2)
-    const A = GBX.concat(GBY).concat(SPID_ARRY).concat(QUOTE_TYPE).concat(KDF_ID).concat(SigSPX).concat(SigSPY)
-    
+    // use eccrypto
+    //eccrypto.sign(hexString2Buffer(signPriKey), digest).then(function(sig){
+    //    console.log("===== tmp:", buf2hexString(sig))
+    //})
+
+    /* 
+     * derive CMACsmk 
+     * */
+    const QUOTE_TYPE = "0100"
+    const KDF_ID = "0100"
+    const A = gbx + gby + SPID + QUOTE_TYPE + KDF_ID + SigSPX + SigSPY
     //const cipher3 = crypto.createCipheriv('aes-128-cbc', Buffer.from(smk), iv)
     //cipher3.update(toHex(A), 'utf8', 'hex')
     //const CMACsmk = cipher3.final('hex')
-    const CMACsmk = aesCmac(Buffer.from(hexStringToArray(smk,2)), Buffer.from(A))
+    const CMACsmk = aesCmac(hexString2Buffer(smk), hexString2Buffer(A))
+    console.log("=====A", A)
     console.log("=====CMACsmk", CMACsmk)
-    console.log("SigSPX", toHex(MY_PUBLIC_KEY.getX()))
+
+    /**
+     * @Set session info
+     * */
+    session["ga"] = {
+        gax: gax,
+        gay: gay
+    }
+    session["smk"] = smk
 
   /**
    * @desc get smac
    */
-  //const GBX = toHex(MY_PUBLIC_KEY.X);
-  //const GBY = toHex(MY_PUBLIC_KEY.Y);
-  //const sMyPublicKey = switchEndian(bigInt(MY_PUBLIC_KEY.X).toString(16), 2) + switchEndian(bigInt(MY_PUBLIC_KEY.Y).toString(16), 2);
-
     //const smac = aesCmac(SHORT_KEY, sMyPublicKey);
     return {
         type: "msg2",
-        gbx: switchEndian(MY_PUBLIC_KEY.getX().toString(16)),
-        gby: switchEndian(MY_PUBLIC_KEY.getY().toString(16)),
-        //gbx: MY_PUBLIC_KEY.getX().toString(16),
-        //gby: MY_PUBLIC_KEY.getY().toString(16),
-        quoteType: buf2hexString(switchEndian(QUOTE_TYPE)),
+        gbx: gbx,
+        gby: gby,
+        quoteType: QUOTE_TYPE,
         spid: SPID,
-        kdfId: buf2hexString(switchEndian(KDF_ID)),
-        SigSPX: buf2hexString(switchEndian(SigSPX)),
-        SigSPY: buf2hexString(switchEndian(SigSPY)),
+        kdfId: KDF_ID,
+        SigSPX: SigSPX,
+        SigSPY: SigSPY,
         CMACsmk: CMACsmk,
         sizeSigrl: SIZE_SIGRL,
         sigrl: SIGRL

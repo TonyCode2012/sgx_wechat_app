@@ -1,4 +1,5 @@
 const bigInt = require("big-integer");
+const request = require('request');
 
 /**
  * @method switchEndian
@@ -65,10 +66,44 @@ function buf2hexString(buffer) { // buffer is an ArrayBuffer
   return Array.prototype.map.call(new Uint8Array(buffer), x => ('00'  + x.toString(16)).slice(-2)).join('');
 }
 
+function base64Encode(hexstring)
+{
+    hexString2Buffer(hexstring).toString('base64')
+}
+
+function base64Decode(base64string)
+{
+    return Buffer.from(base64string, 'base64').toString('ascii').toString(16)
+}
+ 
+function httpSend(url,data) {
+    return new Promise(function(resolve, reject) {
+        request({
+            url: url,
+            method: "POST",
+            json: true,
+            headers: {
+                "content-type": "application/json",
+                //"Ocp-Apim-Subscription-Key": "e2e08166ca0f41ef88af2797f007c7cd",
+            },
+            body: data
+        }, function(error, response, body) {
+            if (!error && response.statusCode == 200) {
+                console.log("successful:",body) // 请求成功的处理逻辑
+                resolve(body)
+            } else {
+                console.log("failed:",error) // 请求成功的处理逻辑
+                reject(error)
+            }
+        });
+    })
+};
+
 module.exports = {
     switchEndian: switchEndian,
     toHex: toHex,
     hexStringToArray: hexStringToArray,
     buf2hexString: buf2hexString,
     hexString2Buffer: hexString2Buffer,
+    httpSend: httpSend,
 }

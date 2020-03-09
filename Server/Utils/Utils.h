@@ -13,3 +13,4 @@ char *hexstring(const void *vsrc, size_t len);
 char *base64_encode(const char *msg, size_t sz);
 char *base64_decode(const char *msg, size_t *sz);
 uint8_t *switch_endian(const uint8_t *src, size_t sz);
+int from_hexstring (unsigned char *dest, const void *vsrc, size_t len);

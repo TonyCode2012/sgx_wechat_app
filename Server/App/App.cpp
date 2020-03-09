@@ -10,7 +10,7 @@ int main(int argc, char** args)
     while(true)
     {
         sleep(3);
-        printf("Waiting for new connection.\n");
+        //printf("Waiting for new connection.\n");
     }
     return 1;
 }
