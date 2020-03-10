@@ -22,10 +22,11 @@ class MessageHandler {
         MessageHandler();
     private:
         std::string handle_att_msg0();
-        void generate_att_msg1();
-        void assemble_msg2(std::string msg2_str, sgx_ra_msg2_t *p_msg2);
         std::string handle_att_msg2(std::string msg2_str);
+        std::string handle_att_msg4(std::string msg4_str);
+        void generate_att_msg1();
         void generate_att_msg3();
+        void assemble_msg2(std::string msg2_str, sgx_ra_msg2_t *p_msg2);
         void handle_register();
         sgx_status_t init_enclave();
         

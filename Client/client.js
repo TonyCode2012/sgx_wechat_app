@@ -47,8 +47,11 @@ async function main() {
     }
     console.log("\n===== Msg3 Detail =====")
     console.log(msg3)
-    // Get msg4 from msg3
+
+    /* Get and Send msg4 */
     const msg4 = getMsg4(msg3,session)
+    const res = httpSend(srvurl,null,msg4)
+
 }
  
 main()

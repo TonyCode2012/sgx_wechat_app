@@ -258,6 +258,7 @@
       "version": "1.0.1"
     },
     "node-aes-cmac": "^0.1.1",
+    "node-aes-gcm": "^0.2.4",
     "oauth-sign": {
       "integrity": "sha512-fexhUFFPTGV8ybAtSIGbV6gOkSv8UtRbDBnAyLQw4QPKkgNlsH2ByPGtMUqdWkos6YCRmAqViwgZrJc/mRDzZQ==",
       "resolved": "https://registry.npmjs.org/oauth-sign/-/oauth-sign-0.9.0.tgz",

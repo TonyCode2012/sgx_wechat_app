@@ -11,6 +11,7 @@ const {
 } = require("./utils")
 const aesCmac = require("node-aes-cmac").aesCmac
 const Base64 = require("js-base64").Base64
+const gcm = require("node-aes-gcm")
 
 async function getMsg4(msg3, session) {
     // Compare public key
@@ -40,6 +41,7 @@ async function getMsg4(msg3, session) {
     }
 
     // Send quote to IAS
+    /*
     const b64quote = Base64.encode(hexString2Buffer(msg3.quote))
     const body = {
         "isvEnclaveQuote": b64quote
@@ -53,6 +55,22 @@ async function getMsg4(msg3, session) {
     }
     console.log("\n===== Verify Quote successfully =====")
     console.log(iasResponse.body)
+    */
+
+
+    const iv = Buffer.alloc(16,0)
+    const emptyBuffer = Buffer.alloc(16,0)
+    const plainText = Buffer.alloc(16,0)
+    console.log("===== sharedKey", session.sharedKey.length)
+    const cipherText = gcm.encrypt(hexString2Buffer(session.sharedKey), iv, plainText, emptyBuffer)
+    console.log("===== cipher text ===== ")
+    console.log(cipherText)
+
+    return {
+        status: "successfully",
+        type: "msg4"
+        cipherText: buf2hexString(cipherText),
+    }
 }
 
 module.exports = {
