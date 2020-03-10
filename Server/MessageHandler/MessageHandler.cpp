@@ -222,67 +222,34 @@ string MessageHandler::handle_att_msg4(string msg4_str)
 
     sgx_aes_gcm_128bit_key_t *p_key;
     memset(p_key, 0, sizeof(sgx_aes_gcm_128bit_key_t));
+    std::string cipherText = msg4_json["cipherText"].ToString();
+    std::string auth_tag = msg4_json["auth_tag"].ToString();
+    size_t src_len = cipherText.size() / 2;
+    uint8_t *p_src = (uint8_t*)malloc(src_len);
+    memset(p_src, 0, src_len);
+    from_hexstring(p_src, cipherText.c_str(), src_len);
+    uint8_t *p_iv = (uint8_t*)malloc(16);
+    uint8_t *p_dst = (uint8_t*)malloc(16);
+    memset(p_iv, 0, 16);
+    sgx_aes_gcm_128bit_tag_t *p_in_mac = (sgx_aes_gcm_128bit_tag_t*)malloc(sizeof(sgx_aes_gcm_128bit_tag_t));
+    memset(p_in_mac, 0, sizeof(sgx_aes_gcm_128bit_tag_t));
 
     do {
-        sgx_status = sgx_rijndael128GCM_decrypt();
-
-        if (SGX_SUCCESS == sgx_status)
-            break;
-
-        if (SGX_ERROR_BUSY == sgx_status)
+        if (SGX_SUCCESS != ecall_verify_secret())
         {
-            if (retry <= 0)
-            {
-                printf("[ERROR] Having retried %d times!\n", retry);
-                break;
-            }
-            printf("[WARN] SGX busy try it again...\n");
-            sleep(1);
-            retry--;
+            printf("[ERROR] Verify secret failed!\n");
         }
-        else
+        sgx_status = sgx_rijndael128GCM_decrypt(p_key,
+                p_src, src_len, p_dst, p_iv, 16, NULL, 0, p_in_mac);
+
+        if (SGX_SUCCESS != sgx_status)
         {
             printf("[ERROR] SGX process message 2 failed!Error code:%lx\n", sgx_status);
-            break;
         }
 
-    } while (true);
+    } while (0);
 
-    if(SGX_SUCCESS != sgx_status)
-    {
-        printf("[ERROR] sgx process msg2 failed:%lx\n",sgx_status);
-        ecall_ra_close(this->enclave_id, &sgx_status, this->ra_context);
-        msg3_json["status"] = "failed";
-    }
-    else
-    {
-        printf("[INFO] sgx process msg2 successfully!\n");
-        uint32_t quote_size = 0;
-        if (SGX_SUCCESS != sgx_get_quote_size(NULL, &quote_size))
-        {
-            printf("[ERROR] Get quote size failed!Error code:%lx\n", sgx_status);
-            msg3_json["status"] = "failed";
-        }
-        else
-        {
-            msg3_json["status"] = "successfully";
-            msg3_json["mac"] = string(hexstring(p_msg3->mac, SGX_MAC_SIZE));
-            msg3_json["gax"] = string(hexstring(p_msg3->g_a.gx, SGX_ECP256_KEY_SIZE));
-            msg3_json["gay"] = string(hexstring(p_msg3->g_a.gy, SGX_ECP256_KEY_SIZE));
-            msg3_json["ps_sec_prop"] = string(hexstring(&p_msg3->ps_sec_prop, 256));
-            msg3_json["quote"] = string(hexstring(&p_msg3->quote, quote_size));
-
-            printf("\n======== Msg3 Details ========\n");
-            printf("status          = %s\n", msg3_json["status"].ToString().c_str());
-            printf("mac             = %s\n", msg3_json["mac"].ToString().c_str());
-            printf("gax             = %s\n", msg3_json["gax"].ToString().c_str());
-            printf("gay             = %s\n", msg3_json["gay"].ToString().c_str());
-            printf("ps_sec_prop     = %s\n", msg3_json["ps_sec_prop"].ToString().c_str());
-            printf("quote           = %s\n\n", msg3_json["quote"].ToString().c_str());
-        }
-    }
-
-    return msg3_json.dump();
+    return "successfully";
 }
 
 void MessageHandler::process(web::http::http_request &req)

@@ -62,14 +62,15 @@ async function getMsg4(msg3, session) {
     const emptyBuffer = Buffer.alloc(16,0)
     const plainText = Buffer.alloc(16,0)
     console.log("===== sharedKey", session.sharedKey.length)
-    const cipherText = gcm.encrypt(hexString2Buffer(session.sharedKey), iv, plainText, emptyBuffer)
+    const cipher = gcm.encrypt(hexString2Buffer(session.sharedKey), iv, plainText, emptyBuffer)
     console.log("===== cipher text ===== ")
     console.log(cipherText)
 
     return {
         status: "successfully",
         type: "msg4"
-        cipherText: buf2hexString(cipherText),
+        cipherText: buf2hexString(cipher.ciphertext),
+        auth_tag: buf2hexString(cipher.auth_tag),
     }
 }
 

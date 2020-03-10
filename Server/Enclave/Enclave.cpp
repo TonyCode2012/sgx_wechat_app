@@ -66,3 +66,25 @@ sgx_status_t SGXAPI ecall_ra_close(sgx_ra_context_t context)
     ret = sgx_ra_close(context);
     return ret;
 }
+
+sgx_status_t ecall_verify_secret(sgx_ra_context_t context,
+        const uint8_t *p_src, uint32_t src_len, 
+        uint8_t *p_dst, const uint8_t *p_in_mac)
+{   
+    sgx_status_t sgx_status = SGX_SUCCESS;
+    sgx_ra_key_128_t ra_key;
+
+    sgx_status = sgx_ra_get_keys(context, SGX_RA_KEY_SK, &ra_key);
+    
+    uint8_t *p_iv = (uint8_t*)malloc(16);
+    memset(p_iv, 0, 16);
+    uint8_t *p_dst = (uint8_t*)malloc(16);
+    sgx_status = sgx_rijndael128GCM_decrypt(&ra_key, p_src, src_len,
+            p_dst, p_iv, 16, NULL, 0, p_in_mac);
+    if (SGX_SUCCESS != sgx_status)
+    {
+        printf("[ERROR] SGX process message 2 failed!Error code:%lx\n", sgx_status);
+    }
+
+    return sgx_status;
+}
