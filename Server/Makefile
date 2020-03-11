@@ -61,7 +61,7 @@ else
 endif
 
 App_Name := server
-Cpp_Include_Path := -IApp -IMessageHandler -IWebService -IUtils -I$(SGX_SDK)/include
+Cpp_Include_Path := -IApp -IMessageHandler -IWebService -IUtils -IOCalls -I$(SGX_SDK)/include
 Cpp_C_Flags := -fPIC -Wno-attributes -fopenmp -std=c++11 $(Cpp_Include_Path)
 
 # Three configuration modes - Debug, prerelease, release
@@ -88,7 +88,7 @@ else
 endif
 
 
-Cpp_Files := $(wildcard App/*.cpp) $(wildcard MessageHandler/*.cpp) $(wildcard Utils/*.cpp) $(wildcard WebService/*.cpp)
+Cpp_Files := $(wildcard App/*.cpp) $(wildcard MessageHandler/*.cpp) $(wildcard Utils/*.cpp) $(wildcard WebService/*.cpp) $(wildcard OCalls/*.cpp)
 Cpp_Objs := $(Cpp_Files:.cpp=.o)
 
 
@@ -103,8 +103,8 @@ else
 endif
 Crypto_Library_Name := sgx_tcrypto
 
-Enclave_Cpp_Files := Enclave/Enclave.cpp
-Enclave_Include_Paths := -IEnclave -I$(SGX_SDK)/include \
+Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/EUtils/*.cpp)
+Enclave_Include_Paths := -IEnclave -IEnclave/EUtils -I$(SGX_SDK)/include \
 	-I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx
 
 Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections
@@ -227,6 +227,10 @@ WebService/%.o: WebService/%.cpp
 	@echo "CXX  <= $<"
 
 Utils/%.o: Utils/%.cpp
+	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(Cpp_C_Flags) -c $< -o $@
+	@echo "CXX  <= $<"
+
+OCalls/%.o: OCalls/%.cpp
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(Cpp_C_Flags) -c $< -o $@
 	@echo "CXX  <= $<"
 

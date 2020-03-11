@@ -49,9 +49,13 @@ async function main() {
     console.log(msg3)
 
     /* Get and Send msg4 */
-    const msg4 = getMsg4(msg3,session)
-    const res = httpSend(srvurl,null,msg4)
+    const msg4 = await getMsg4(msg3,session)
+    console.log("\n===== Msg4 Detail =====")
+    console.log(msg4)
+    const res = await httpSend(srvurl,null,msg4)
 
+    console.log("\n===== Response Detail =====")
+    console.log(res.body)
 }
  
 main()

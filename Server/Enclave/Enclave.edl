@@ -7,6 +7,12 @@ enclave {
     trusted {
         public sgx_status_t ecall_init_ra(int b_pse, [out] sgx_ra_context_t *p_context);
         public sgx_status_t ecall_ra_close(sgx_ra_context_t context);
+        public sgx_status_t ecall_verify_secret(sgx_ra_context_t context, [in, size=src_len] const uint8_t *p_src, uint32_t src_len, [in,out,size=src_len] uint8_t *p_dst, [in] const sgx_aes_gcm_128bit_tag_t *p_in_mac);
+    };
+
+    untrusted {
+        void ocall_print_string([in, string] const char *str);
+        void ocall_eprint_string([in, string] const char *str);
     };
 
 };

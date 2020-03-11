@@ -101,6 +101,7 @@ function getMsg2(ecPublicKey, session) {
         gay: gay
     }
     session["smk"] = smk
+    session["kdk"] = kdk
     session["sharedKey"] = sharedKey
 
   /**

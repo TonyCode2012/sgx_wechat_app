@@ -1,12 +1,14 @@
 #include "MessageHandler.h"
 #include "Json.hpp"
+#include "Common.h"
 
 using namespace std;
+
+extern FILE *felog;
 
 
 MessageHandler::MessageHandler()
 {
-    //this->client = new web::http::client::http_client(U("http://localhost:12345"));
     init_enclave();
 }
 
@@ -23,39 +25,48 @@ sgx_status_t MessageHandler::init_enclave()
     do {
         sgx_status = sgx_create_enclave(ENCLAVE_PATH, SGX_DEBUG_FLAG,
                 &launch_token, &launch_token_update, &this->enclave_id, NULL);
-        printf("enclave_id:%" PRIu64 "\n",this->enclave_id);
+        printf_info(felog, "enclave_id:%" PRIu64 "\n",this->enclave_id);
 
         if (SGX_SUCCESS != sgx_status) 
         {
-            //Log("Error, call sgx_create_enclave fail! ErrorCode:%lx", log::error, sgx_status);
-            //print_error_message(sgx_status);
-            break;
+            printf_err(felog, "Call sgx_create_enclave fail! ErrorCode:%lx\n", sgx_status);
+            goto cleanup;
         } 
-        else 
-        {
-            //Log("Call sgx_create_enclave success");
-
-            sgx_status = ecall_init_ra(this->enclave_id, &ra_status,
-                    false, &this->ra_context);
-        }
+        printf_info(felog, "Call sgx_create_enclave successfully!\n");
 
     } while (SGX_ERROR_ENCLAVE_LOST == sgx_status && enclave_lost_sgx_statusry_time--);
 
-    if (sgx_status == SGX_SUCCESS)
-    {
-        //Log("Enclave created, ID: %llx", this->enclave_id);
-    }
+    printf_info(felog, "Enclave created, ID: %llx\n", this->enclave_id);
 
+cleanup:
 
     return sgx_status;
 }
 
 string MessageHandler::handle_att_msg0()
 {
+
     sgx_status_t sgx_status = SGX_SUCCESS;
+    sgx_status_t ra_status = SGX_SUCCESS;
     sgx_ra_msg1_t ra_msg1;
     int retry = 5;
     json::JSON msg1_json;
+
+    if (SGX_SUCCESS != (sgx_status = ecall_init_ra(this->enclave_id, &ra_status, 
+                    false, &this->ra_context))
+            || SGX_SUCCESS != ra_status )
+    {
+        if (SGX_SUCCESS != sgx_status)
+        {
+            printf_err(felog, "Invoke SGX failed!Error code:%lx\n", sgx_status);
+        }
+        else
+        {
+            printf_err(felog, "Init remote attestation failed!Error code:%lx\n", ra_status);
+        }
+        msg1_json["status"] = "failed";
+        goto cleanup;
+    }
 
     do {
         sgx_status = sgx_ra_get_msg1(this->ra_context, this->enclave_id,
@@ -69,19 +80,16 @@ string MessageHandler::handle_att_msg0()
             if (retry <= 0) 
             { 
                 //retried 5 times, so fail out
-                //Log("Error, sgx_ra_get_msg1 is busy - 5 retries failed", log::error);
+                printf_err(felog, "sgx_ra_get_msg1 is busy - 5 retries failed!\n");
                 break;
             }
-            else 
-            {
-                sleep(3);
-                retry--;
-            }
+            sleep(3);
+            retry--;
         } 
         else 
         {    
             //error other than busy
-            //Log("Error, failed to generate MSG1,error code:%lx", sgx_status, log::error);
+            printf_err(felog, "Failed to generate MSG1,error code:%lx\n", sgx_status);
             break;
         }
     } while(true);
@@ -101,6 +109,8 @@ string MessageHandler::handle_att_msg0()
         msg1_json["gid"] = hexstring(switch_endian(ra_msg1.gid,sizeof(ra_msg1.gid)), sizeof(ra_msg1.gid));
         msg1_json["status"] = "successfully";
     }
+
+cleanup:
 
     return msg1_json.dump();
 }
@@ -183,6 +193,8 @@ string MessageHandler::handle_att_msg2(string msg2_str)
         printf("[ERROR] sgx process msg2 failed:%lx\n",sgx_status);
         ecall_ra_close(this->enclave_id, &sgx_status, this->ra_context);
         msg3_json["status"] = "failed";
+
+        ecall_ra_close(this->enclave_id, &sgx_status, this->ra_context);
     }
     else
     {
@@ -220,34 +232,38 @@ string MessageHandler::handle_att_msg4(string msg4_str)
     sgx_status_t sgx_status = SGX_SUCCESS;
     json::JSON msg4_json = json::JSON::Load(msg4_str);
 
-    sgx_aes_gcm_128bit_key_t *p_key;
-    memset(p_key, 0, sizeof(sgx_aes_gcm_128bit_key_t));
+
+    printf("\n======== Msg4 Details ========\n");
+    printf("%s\n", msg4_json.dump().c_str());
+
     std::string cipherText = msg4_json["cipherText"].ToString();
     std::string auth_tag = msg4_json["auth_tag"].ToString();
+    // Get encrypted data
     size_t src_len = cipherText.size() / 2;
     uint8_t *p_src = (uint8_t*)malloc(src_len);
     memset(p_src, 0, src_len);
     from_hexstring(p_src, cipherText.c_str(), src_len);
-    uint8_t *p_iv = (uint8_t*)malloc(16);
-    uint8_t *p_dst = (uint8_t*)malloc(16);
-    memset(p_iv, 0, 16);
+    // Get auth mac
     sgx_aes_gcm_128bit_tag_t *p_in_mac = (sgx_aes_gcm_128bit_tag_t*)malloc(sizeof(sgx_aes_gcm_128bit_tag_t));
     memset(p_in_mac, 0, sizeof(sgx_aes_gcm_128bit_tag_t));
+    from_hexstring((uint8_t*)p_in_mac, auth_tag.c_str(), sizeof(sgx_aes_gcm_128bit_tag_t));
+    // Allocate decrypted buffer
+    uint8_t *p_dst = (uint8_t*)malloc(src_len);
+    memset(p_dst, 0, src_len);
 
-    do {
-        if (SGX_SUCCESS != ecall_verify_secret())
-        {
-            printf("[ERROR] Verify secret failed!\n");
-        }
-        sgx_status = sgx_rijndael128GCM_decrypt(p_key,
-                p_src, src_len, p_dst, p_iv, 16, NULL, 0, p_in_mac);
+    /* Verify secret */
+    ecall_verify_secret(this->enclave_id, &sgx_status, this->ra_context, 
+            p_src, src_len, p_dst, p_in_mac);
+    if (SGX_SUCCESS != sgx_status)
+    {
+        printf_err(felog, "Verify secret failed!Error code:%lx\n", sgx_status);
+    }
+    else
+    {
+        printf_info(felog, "Verify secret successfully!plain text:%s\n", hexstring(p_dst, src_len));
+    }
 
-        if (SGX_SUCCESS != sgx_status)
-        {
-            printf("[ERROR] SGX process message 2 failed!Error code:%lx\n", sgx_status);
-        }
-
-    } while (0);
+    ecall_ra_close(this->enclave_id, &sgx_status, this->ra_context);
 
     return "successfully";
 }
@@ -271,7 +287,7 @@ void MessageHandler::process(web::http::http_request &req)
     }
     else if(type.compare("msg4") == 0)
     {
-        string msg3 = handle_att_msg4(content);
+        string msg5 = handle_att_msg4(content);
         req.reply(web::http::status_codes::OK, "successfully");
     }
 }
