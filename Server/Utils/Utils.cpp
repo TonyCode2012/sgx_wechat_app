@@ -76,7 +76,7 @@ char *hexstring(const void *vsrc, size_t len)
 		_hex_buffer = (char *)realloc(_hex_buffer, newsz);
 		if (_hex_buffer == NULL)
 		{
-			return (char*)"(out of memory)";
+			return NULL;
 		}
 	}
 
@@ -117,7 +117,7 @@ char *base64_encode(const char *msg, size_t sz)
 		return NULL;
 	}
 
-	BIO_flush(b64);
+	//BIO_flush(b64);
 
 	len = (size_t)BIO_get_mem_data(bmem, &bstr);
 	dup = (char *)malloc(len + 1);
@@ -177,7 +177,7 @@ uint8_t *switch_endian(const uint8_t *src, size_t sz)
 {
     uint8_t *des = (uint8_t*)malloc(sz);
     memset(des, 0, sz);
-    for(int i=0,j=sz-1;i<sz;i++,j--)
+    for(size_t i=0,j=sz-1;i<sz;i++,j--)
     {
         des[i] = src[j];
     }

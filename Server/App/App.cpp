@@ -4,7 +4,8 @@
 
 extern FILE *felog;
 
-int main(int argc, char** args)
+//int main(int argc, char** args)
+int main()
 {
     // Create log file
     if ((felog = create_logfile("./server.log")) == NULL)

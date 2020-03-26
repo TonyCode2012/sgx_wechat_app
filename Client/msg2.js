@@ -1,41 +1,44 @@
-const SPID = "FEF23C7E73A379823CE71FF289CFBC07";
 const SIGRL = 0;
 const SIZE_SIGRL = 0;
-const AES_CMAC_KDF_ID = 0x0001;
-const SAMPLE_QUOTE_LINKABLE_SIGNATURE = 1;
 const {
     switchEndian,
     toHex,
     hexStringToArray,
     buf2hexString,
     hexString2Buffer,
+    httpSend,
 } = require("./utils");
 const {
     signPriKey,
+    SPID,
+    iasBaseUrl,
+    iasHeader,
 } = require("./config")
 
 const crypto = require("crypto")
 const aesCmac = require("node-aes-cmac").aesCmac;
 const EC = require('elliptic').ec
 const ec = new EC('p256');
-const ecUtils = require('eckey-utils')
-const eccrypto = require("eccrypto")
-const bigInt = require("big-integer");
 
 
-function handleEcdhParam(decArray) {
-  const hexStrArray = decArray.map(num => {
-    const hex = num.toString(16);
-    return (hex.length < 2) ? '0' + hex : hex;
-  });
-  const hexString = hexStrArray.join("");
-  const switchedHexString = switchEndian(hexString);
-  const decimalString = bigInt(switchedHexString, 16).toString();
-  return decimalString;
-}
 
+async function getMsg2(ecPublicKey, session) {
+    /* Get sigrl */
+    console.log("\n===== Requesting SigRL from IAS... ======")
+    var sigrl = ""
+    var sigrlSize = 0
+    const sigRet = await httpSend(iasBaseUrl+"/sigrl/"+switchEndian(session.gid),"GET",iasHeader,"")
+    if (sigRet.statusCode != 200)
+    {
+        console.log("Request IAS server failed!")
+        return null
+    }
+    if (sigRet.body != undefined && sigRet.body != "")
+    {
+        sigrl = sigRet.body
+        sigrlSize = sigrl.length
+    }
 
-function getMsg2(ecPublicKey, session) {
     /* Get GAX */
     const gax = ecPublicKey.X
     const gay = ecPublicKey.Y
@@ -60,10 +63,15 @@ function getMsg2(ecPublicKey, session) {
     const iv = Buffer.alloc(16, 0)
     const kdk = aesCmac(iv, hexString2Buffer(sharedKey))
     //console.log("kdk                = ",kdk)
-    // derive smk
+    // Derive smk
     const message = [0x01,'S'.charCodeAt(0),'M'.charCodeAt(0),'K'.charCodeAt(0),0x00,0x80,0x00]
     const smk = aesCmac(hexString2Buffer(kdk), Buffer.from(message))
     //console.log("smk                = ",smk)
+    // Derive sk and mk
+    const skMsg = [0x01,'S'.charCodeAt(0),'K'.charCodeAt(0),0x00,0x80,0x00]
+    const mkMsg = [0x01,'M'.charCodeAt(0),'K'.charCodeAt(0),0x00,0x80,0x00]
+    const sk = aesCmac(hexString2Buffer(kdk), Buffer.from(skMsg))
+    const mk = aesCmac(hexString2Buffer(kdk), Buffer.from(mkMsg))
 
     /**
      * @desc get signature: sign publck keys with my private key
@@ -100,8 +108,10 @@ function getMsg2(ecPublicKey, session) {
         gax: gax,
         gay: gay
     }
-    session["smk"] = smk
     session["kdk"] = kdk
+    session["smk"] = smk
+    session["sk"] = sk
+    session["mk"] = mk
     session["sharedKey"] = sharedKey
 
   /**
@@ -118,8 +128,8 @@ function getMsg2(ecPublicKey, session) {
         SigSPX: SigSPX,
         SigSPY: SigSPY,
         CMACsmk: CMACsmk,
-        sizeSigrl: SIZE_SIGRL,
-        sigrl: SIGRL
+        sizeSigrl: sigrlSize,
+        sigrl: sigrl,
     }
 }
 

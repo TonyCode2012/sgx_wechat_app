@@ -62,7 +62,7 @@ endif
 
 App_Name := server
 Cpp_Include_Path := -IApp -IMessageHandler -IWebService -IUtils -IOCalls -I$(SGX_SDK)/include
-Cpp_C_Flags := -fPIC -Wno-attributes -fopenmp -std=c++11 $(Cpp_Include_Path)
+Cpp_C_Flags := -fPIC -Wno-attributes -fopenmp $(Cpp_Include_Path)
 
 # Three configuration modes - Debug, prerelease, release
 #   Debug - Macro DEBUG enabled.
@@ -216,27 +216,27 @@ App/Enclave_u.o: App/Enclave_u.c
 
 App/%.o: App/%.cpp
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(Cpp_C_Flags) -c $< -o $@
-	@echo "CXX  <= $<"
+	@echo "CXX  <=  $<"
 
 MessageHandler/%.o: MessageHandler/%.cpp
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(Cpp_C_Flags) -c $< -o $@
-	@echo "CXX  <= $<"
+	@echo "CXX  <=  $<"
 
 WebService/%.o: WebService/%.cpp
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(Cpp_C_Flags) -c $< -o $@
-	@echo "CXX  <= $<"
+	@echo "CXX  <=  $<"
 
 Utils/%.o: Utils/%.cpp
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(Cpp_C_Flags) -c $< -o $@
-	@echo "CXX  <= $<"
+	@echo "CXX  <=  $<"
 
 OCalls/%.o: OCalls/%.cpp
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(Cpp_C_Flags) -c $< -o $@
-	@echo "CXX  <= $<"
+	@echo "CXX  <=  $<"
 
 $(App_Name): App/Enclave_u.o $(Cpp_Objs)
 	@$(CXX) -o $@ $^ $(Cpp_Link_Flags)
-	@echo "Link <= $@"
+	@echo "Link <=  $@"
 
 
 ######## Enclave Objects ########

@@ -23,7 +23,7 @@ int eprintf(const char *fmt, ...)
  * @description: use ocall_eprint_string to print format string
  * @return: the length of printed string
  */
-int cfeprintf(const char *fmt, ...)
+int feprintf(const char *fmt, ...)
 {
 	char buf[BUFSIZE] = {'\0'};
 	va_list ap;

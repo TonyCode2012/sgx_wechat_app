@@ -66,28 +66,31 @@ function buf2hexString(buffer) { // buffer is an ArrayBuffer
   return Array.prototype.map.call(new Uint8Array(buffer), x => ('00'  + x.toString(16)).slice(-2)).join('');
 }
  
-function httpSend(url,header,data) {
+function httpSend(url,method,header,data) {
     if (header == null)
     {
         header = {"content-type": "application/json"}
     }
+    if (method != "POST" && method != "GET")
+    {
+        console.log("Wrong http method!Should be POST or GET!")
+        return
+    }
     return new Promise(function(resolve, reject) {
         request({
             url: url,
-            method: "POST",
+            method: method,
             json: true,
             headers: header,
             body: data
         }, function(error, response, body) {
             if (!error && response.statusCode == 200) {
-                //console.log("successful:",response)
                 resolve({
                     body: body,
                     statusCode: response.statusCode,
                     response: response,
                 })
             } else {
-                //console.log("failed:",response)
                 reject({
                     statusCode: response.statusCode,
                 })

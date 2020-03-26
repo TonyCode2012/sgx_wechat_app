@@ -20,7 +20,7 @@ extern "C"
 #endif
 
 int eprintf(const char* fmt, ...);
-int cfeprintf(const char* fmt, ...);
+int feprintf(const char* fmt, ...);
 char *hexstring(const void *vsrc, size_t len);
 uint8_t *hex_string_to_bytes(const char *src, size_t len);
 

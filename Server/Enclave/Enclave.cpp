@@ -2,12 +2,16 @@
 #include <stdio.h>
 
 #include <assert.h>
+#include <map>
+#include <string>
 #include "sgx_tkey_exchange.h"
 #include "sgx_tcrypto.h"
 #include "sgx_tseal.h"
 #include "string.h"
 #include "EUtils.h"
 #include "Enclave_t.h"
+
+using namespace std;
 
 // This is the public EC key of the SP. The corresponding private EC key is
 // used by the SP to sign data used in the remote attestation SIGMA protocol
@@ -36,7 +40,17 @@ static const sgx_ec256_public_t g_sp_pub_key = {
 
 };
 
+// Store user account id to user phone num mapping
+map<vector<uint8_t>, string> accid_phone_map;
+// Store context id to user account id mapping
+map<sgx_ra_context_t, vector<uint8_t>> contextid_accid_map;
 
+/**
+ * @description: Initialize remote attestation context
+ * @param b_pse -> Indicate whether create pse session
+ * @param p_context -> RA session
+ * @return: Initialize status
+ * */
 sgx_status_t ecall_init_ra(int b_pse, sgx_ra_context_t *p_context)
 {
     // isv enclave call to trusted key exchange library.
@@ -61,19 +75,51 @@ sgx_status_t ecall_init_ra(int b_pse, sgx_ra_context_t *p_context)
     return ret;
 }
 
+/**
+ * @description: Close remote attestation
+ * @param context -> Indicate to be closed context
+ * @return: Close status
+ * */
 sgx_status_t SGXAPI ecall_ra_close(sgx_ra_context_t context) 
 {
     sgx_status_t ret;
     ret = sgx_ra_close(context);
+    contextid_accid_map.erase(context);
     return ret;
 }
 
-sgx_status_t ecall_verify_secret(sgx_ra_context_t context,
+/**
+ * @description: Store user account id
+ * @param context -> Corresponding context
+ * @param p_Gb -> Pointer to user account id
+ * @param Gb_size -> User account id size
+ * */
+void ecall_store_account_id(sgx_ra_context_t context, uint8_t* p_Gb, uint32_t Gb_size)
+{
+    vector<uint8_t> Gb_v(p_Gb, p_Gb + Gb_size);
+    contextid_accid_map[context] = Gb_v;
+}
+
+/**
+ * @description: Decrypt user passed data
+ * @param context -> Corresponding context
+ * @param p_src -> Encrypted data
+ * @param src_len -> Encrypted data size
+ * @param p_in_mac -> Encrypted data mac
+ * @return: Decrypted status
+ * */
+sgx_status_t ecall_decrypt_secret(sgx_ra_context_t context,
         const uint8_t *p_src, uint32_t src_len, 
-        uint8_t *p_dst, const sgx_aes_gcm_128bit_tag_t *p_in_mac)
+        const sgx_aes_gcm_128bit_tag_t *p_in_mac)
 {   
+    if (contextid_accid_map.find(context) == contextid_accid_map.end())
+    {
+        return SGX_ERROR_UNEXPECTED;
+    }
+
     sgx_status_t sgx_status = SGX_SUCCESS;
     sgx_ra_key_128_t ra_key;
+    string phone_num;
 
     sgx_status = sgx_ra_get_keys(context, SGX_RA_KEY_SK, &ra_key);
     if (SGX_SUCCESS != sgx_status)
@@ -81,12 +127,32 @@ sgx_status_t ecall_verify_secret(sgx_ra_context_t context,
         return sgx_status;
     }
 
-    cfeprintf("ra key:%s\n", hexstring(&ra_key, sizeof(ra_key)));
+    feprintf("ra key:%s\n", hexstring(&ra_key, sizeof(ra_key)));
     
     uint8_t *p_iv = (uint8_t*)malloc(SGX_AESGCM_IV_SIZE);
     memset(p_iv, 0, SGX_AESGCM_IV_SIZE);
+    uint8_t *p_dst = (uint8_t*)malloc(src_len);
+    memset(p_dst, 0, src_len);
     sgx_status = sgx_rijndael128GCM_decrypt(&ra_key, p_src,
             src_len, p_dst, p_iv, SGX_AESGCM_IV_SIZE, NULL, 0, p_in_mac);
+
+    if (SGX_SUCCESS != sgx_status)
+    {
+        sgx_status = SGX_ERROR_UNEXPECTED;
+        goto cleanup;
+    }
+
+    phone_num = string(hexstring(p_dst, src_len));
+    phone_num = phone_num.substr(0, 11);
+    accid_phone_map[contextid_accid_map[context]] = phone_num;
+
+    feprintf("Phone number:%s\n", accid_phone_map[contextid_accid_map[context]]);
+
+
+cleanup:
+
+    free(p_iv);
+    free(p_dst);
 
     return sgx_status;
 }

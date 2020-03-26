@@ -1,9 +1,13 @@
+#ifndef _MESSAGEHANDLER_H_
+#define _MESSAGEHANDLER_H_
+
 #include <stdio.h>
 #include <limits.h>
 #include <unistd.h>
 #include <iostream>
 #include <inttypes.h>
 #include <string>
+#include <map>
 #include <cpprest/http_listener.h>
 #include "sgx_tseal.h"
 #include "Enclave_u.h"
@@ -16,21 +20,23 @@
 
 #define ENCLAVE_PATH "enclave.signed.so"
 
+using namespace std;
+
 class MessageHandler {
     public:
         void process(web::http::http_request &req);
         MessageHandler();
     private:
+        sgx_status_t init_enclave();
         std::string handle_att_msg0();
         std::string handle_att_msg2(std::string msg2_str);
         std::string handle_att_msg4(std::string msg4_str);
-        void generate_att_msg1();
-        void generate_att_msg3();
-        void assemble_msg2(std::string msg2_str, sgx_ra_msg2_t *p_msg2);
         void handle_register();
-        sgx_status_t init_enclave();
         
         sgx_enclave_id_t enclave_id;
         sgx_ra_context_t ra_context;
         web::http::client::http_client *client;
+        map<vector<uint8_t>, string> accid_phone_map;
 };
+
+#endif

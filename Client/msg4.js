@@ -41,30 +41,27 @@ async function getMsg4(msg3, session) {
     }
 
     // Send quote to IAS
-    /*
     const b64quote = Base64.encode(hexString2Buffer(msg3.quote))
     const body = {
         "isvEnclaveQuote": b64quote
     }
-    console.log("===== Sending quote to IAS... ======")
-    const iasResponse = await httpSend(iasBaseUrl+"/report",iasHeader,body)
+    console.log("\n===== Sending quote to IAS... ======")
+    const iasResponse = await httpSend(iasBaseUrl+"/report","POST",iasHeader,body)
     if (iasResponse.statusCode != 200)
     {
-        console.log("Request IAS service failed!")
+        console.log("Request IAS server failed!")
         return null
     }
     console.log("\n===== Verify Quote successfully =====")
     console.log(iasResponse.body)
-    */
 
-
-    const skMsg = [0x01,'S'.charCodeAt(0),'K'.charCodeAt(0),0x00,0x80,0x00]
-    const sk = aesCmac(hexString2Buffer(session.kdk), Buffer.from(skMsg))
-    console.log("===== sk", sk)
+    // Encypt data
+    console.log("===== sk", session.sk)
+    console.log("===== mk", session.mk)
     const iv = Buffer.alloc(12,0)
     const emptyBuffer = Buffer.alloc(0,0)
-    const plainText = hexString2Buffer(sk)
-    const cipher = gcm.encrypt(hexString2Buffer(sk), iv, plainText, emptyBuffer)
+    const plainText = hexString2Buffer("15021128363")
+    const cipher = gcm.encrypt(hexString2Buffer(session.sk), iv, plainText, emptyBuffer)
     console.log("===== cipher text ===== ")
     console.log(cipher)
 

@@ -7,7 +7,8 @@ enclave {
     trusted {
         public sgx_status_t ecall_init_ra(int b_pse, [out] sgx_ra_context_t *p_context);
         public sgx_status_t ecall_ra_close(sgx_ra_context_t context);
-        public sgx_status_t ecall_verify_secret(sgx_ra_context_t context, [in, size=src_len] const uint8_t *p_src, uint32_t src_len, [in,out,size=src_len] uint8_t *p_dst, [in] const sgx_aes_gcm_128bit_tag_t *p_in_mac);
+        public sgx_status_t ecall_decrypt_secret(sgx_ra_context_t context, [in, size=src_len] const uint8_t *p_src, uint32_t src_len, [in] const sgx_aes_gcm_128bit_tag_t *p_in_mac);
+        public void ecall_store_account_id(sgx_ra_context_t context, [in, size=Gb_size] uint8_t* p_Gb, uint32_t Gb_size);
     };
 
     untrusted {

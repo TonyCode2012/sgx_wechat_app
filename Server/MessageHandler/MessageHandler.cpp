@@ -1,6 +1,7 @@
 #include "MessageHandler.h"
 #include "Json.hpp"
 #include "Common.h"
+#include "SgxSupport.h"
 
 using namespace std;
 
@@ -9,15 +10,21 @@ extern FILE *felog;
 
 MessageHandler::MessageHandler()
 {
-    init_enclave();
+    if (SGX_SUCCESS != init_enclave())
+    {
+        exit(-1);
+    }
 }
 
+/**
+ * @description: Initialize enclave
+ * @return: Initialize status
+ * */
 sgx_status_t MessageHandler::init_enclave()
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
-    sgx_status_t ra_status = SGX_SUCCESS;
     int launch_token_update = 0;
-    int enclave_lost_sgx_statusry_time = 1;
+    int enclave_lost_sgx_statusry_time = 3;
     sgx_launch_token_t launch_token = {0};
 
     memset(&launch_token, 0, sizeof(sgx_launch_token_t));
@@ -27,7 +34,7 @@ sgx_status_t MessageHandler::init_enclave()
                 &launch_token, &launch_token_update, &this->enclave_id, NULL);
         printf_info(felog, "enclave_id:%" PRIu64 "\n",this->enclave_id);
 
-        if (SGX_SUCCESS != sgx_status) 
+        if (enclave_lost_sgx_statusry_time <= 0) 
         {
             printf_err(felog, "Call sgx_create_enclave fail! ErrorCode:%lx\n", sgx_status);
             goto cleanup;
@@ -43,6 +50,10 @@ cleanup:
     return sgx_status;
 }
 
+/**
+ * @description: Remote attestation handle Message0
+ * @return: Message2
+ * */
 string MessageHandler::handle_att_msg0()
 {
 
@@ -92,6 +103,7 @@ string MessageHandler::handle_att_msg0()
             printf_err(felog, "Failed to generate MSG1,error code:%lx\n", sgx_status);
             break;
         }
+
     } while(true);
 
     if (SGX_SUCCESS != sgx_status)
@@ -115,8 +127,19 @@ cleanup:
     return msg1_json.dump();
 }
 
-void MessageHandler::assemble_msg2(string msg2_str, sgx_ra_msg2_t *p_msg2)
+/**
+ * @description: Remote attestation handle Message2
+ * @param msg2_str -> Message2 content
+ * @return: Message3
+ * */
+string MessageHandler::handle_att_msg2(string msg2_str)
 {
+    sgx_status_t sgx_status = SGX_SUCCESS;
+    sgx_ra_msg2_t *p_msg2 = (sgx_ra_msg2_t*)malloc(sizeof(sgx_ra_msg2_t));
+    json::JSON msg3_json;
+    memset(p_msg2, 0, sizeof(sgx_ra_msg2_t));
+
+    /* Assemble msg2 */
     json::JSON msg2_json = json::JSON::Load(msg2_str);
     string gbx = msg2_json["gbx"].ToString();
     string gby = msg2_json["gby"].ToString();
@@ -145,18 +168,9 @@ void MessageHandler::assemble_msg2(string msg2_str, sgx_ra_msg2_t *p_msg2)
     printf("msg2.kdf_id      = %s\n", hexstring(&p_msg2->kdf_id, 2));
     printf("msg2.sign_ga_gb  = %s\n", hexstring(&p_msg2->sign_gb_ga, 64));
     printf("msg2.mac         = %s\n", hexstring(&p_msg2->mac, SGX_MAC_SIZE));
-}
 
 
-string MessageHandler::handle_att_msg2(string msg2_str)
-{
-    sgx_status_t sgx_status = SGX_SUCCESS;
-    sgx_ra_msg2_t *p_msg2 = (sgx_ra_msg2_t*)malloc(sizeof(sgx_ra_msg2_t));
-    json::JSON msg3_json;
-    memset(p_msg2, 0, sizeof(sgx_ra_msg2_t));
-    uint32_t msg2_size;
-    assemble_msg2(msg2_str,p_msg2);
-
+    /* Get msg3 */
     sgx_ra_msg3_t *p_msg3 = NULL;
     uint32_t msg3_size;
     int retry = 3;
@@ -182,7 +196,7 @@ string MessageHandler::handle_att_msg2(string msg2_str)
         }
         else
         {
-            printf("[ERROR] SGX process message 2 failed!Error code:%lx\n", sgx_status);
+            printf("[ERROR] SGX process message 2 failed!Error code:%d\n", sgx_status);
             break;
         }
 
@@ -190,19 +204,19 @@ string MessageHandler::handle_att_msg2(string msg2_str)
 
     if(SGX_SUCCESS != sgx_status)
     {
-        printf("[ERROR] sgx process msg2 failed:%lx\n",sgx_status);
+        printf("[ERROR] sgx process msg2 failed:%d\n",sgx_status);
         ecall_ra_close(this->enclave_id, &sgx_status, this->ra_context);
         msg3_json["status"] = "failed";
-
-        ecall_ra_close(this->enclave_id, &sgx_status, this->ra_context);
     }
     else
     {
         printf("[INFO] sgx process msg2 successfully!\n");
         uint32_t quote_size = 0;
-        if (SGX_SUCCESS != sgx_get_quote_size(NULL, &quote_size))
+        //if (SGX_SUCCESS != sgx_get_quote_size(NULL, &quote_size))
+        if (!get_quote_size(&sgx_status, &quote_size)
+                || SGX_SUCCESS != sgx_status)
         {
-            printf("[ERROR] Get quote size failed!Error code:%lx\n", sgx_status);
+            printf("[ERROR] Get quote size failed!Error code:%d\n", sgx_status);
             msg3_json["status"] = "failed";
         }
         else
@@ -221,12 +235,33 @@ string MessageHandler::handle_att_msg2(string msg2_str)
             printf("gay             = %s\n", msg3_json["gay"].ToString().c_str());
             printf("ps_sec_prop     = %s\n", msg3_json["ps_sec_prop"].ToString().c_str());
             printf("quote           = %s\n\n", msg3_json["quote"].ToString().c_str());
+
+            // Store Gb
+            string Gb = gbx.append(gby);
+            uint8_t *p_Gb = (uint8_t*)malloc(SGX_ECP256_KEY_SIZE*2);
+            memset(p_Gb, 0, SGX_ECP256_KEY_SIZE*2);
+            from_hexstring(p_Gb, Gb.c_str(), SGX_ECP256_KEY_SIZE*2);
+            if (SGX_SUCCESS != ecall_store_account_id(this->enclave_id, this->ra_context, p_Gb, SGX_ECP256_KEY_SIZE*2))
+            {
+                printf_err(felog, "Store account id failed!Error:invoke SGX failed!\n");
+                ecall_ra_close(this->enclave_id, &sgx_status, this->ra_context);
+                msg3_json["status"] = "failed";
+            }
+            else
+            {
+                printf_info(felog, "Store user account id successfully!\n");
+            }
         }
     }
 
     return msg3_json.dump();
 }
 
+/**
+ * @description: Remote attestation handle Message4
+ * @param msg4_str -> Message4 content
+ * @return: Handle result
+ * */
 string MessageHandler::handle_att_msg4(string msg4_str)
 {
     sgx_status_t sgx_status = SGX_SUCCESS;
@@ -248,19 +283,17 @@ string MessageHandler::handle_att_msg4(string msg4_str)
     memset(p_in_mac, 0, sizeof(sgx_aes_gcm_128bit_tag_t));
     from_hexstring((uint8_t*)p_in_mac, auth_tag.c_str(), sizeof(sgx_aes_gcm_128bit_tag_t));
     // Allocate decrypted buffer
-    uint8_t *p_dst = (uint8_t*)malloc(src_len);
-    memset(p_dst, 0, src_len);
 
     /* Verify secret */
-    ecall_verify_secret(this->enclave_id, &sgx_status, this->ra_context, 
-            p_src, src_len, p_dst, p_in_mac);
+    ecall_decrypt_secret(this->enclave_id, &sgx_status, this->ra_context, 
+            p_src, src_len, p_in_mac);
     if (SGX_SUCCESS != sgx_status)
     {
         printf_err(felog, "Verify secret failed!Error code:%lx\n", sgx_status);
     }
     else
     {
-        printf_info(felog, "Verify secret successfully!plain text:%s\n", hexstring(p_dst, src_len));
+        printf_info(felog, "Verify secret successfully!\n");
     }
 
     ecall_ra_close(this->enclave_id, &sgx_status, this->ra_context);
@@ -268,6 +301,10 @@ string MessageHandler::handle_att_msg4(string msg4_str)
     return "successfully";
 }
 
+/**
+ * @description: Process registry request
+ * @param req -> Http request content
+ * */
 void MessageHandler::process(web::http::http_request &req)
 {
     string content = req.extract_utf8string().get();
@@ -275,7 +312,10 @@ void MessageHandler::process(web::http::http_request &req)
     json::JSON req_json = json::JSON::Load(content);
     string type = req_json["type"].ToString();
 
-    if(type.compare("msg0") == 0)
+    if(type.compare("register") == 0)
+    {
+    }
+    else if(type.compare("msg0") == 0)
     {
         string msg1 = handle_att_msg0();
         req.reply(web::http::status_codes::OK, msg1);
@@ -288,6 +328,11 @@ void MessageHandler::process(web::http::http_request &req)
     else if(type.compare("msg4") == 0)
     {
         string msg5 = handle_att_msg4(content);
+        req.reply(web::http::status_codes::OK, "successfully");
+    }
+    else
+    {
+        printf_err(felog, "Unknown message type!\n");
         req.reply(web::http::status_codes::OK, "successfully");
     }
 }

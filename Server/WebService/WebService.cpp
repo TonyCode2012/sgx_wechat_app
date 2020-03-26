@@ -1,8 +1,11 @@
 #include "WebService.h"
+#include "Common.h"
 
 //using namespace web;
 //using namespace web::http;
 //using namespace web::http::experimental::listener;
+
+extern FILE *felog;
 
 
 WebService::WebService(utility::string_t url)
@@ -25,7 +28,7 @@ void WebService::set_msg_handler(MessageHandler *msg_handler)
 void WebService::start()
 {
     this->listener->open().wait();
-    printf("==== start webservice successfully\n");
+    printf_info(felog, "Start webservice successfully!\n");
 }
 
 void WebService::stop()
@@ -35,11 +38,12 @@ void WebService::stop()
 
 void WebService::handle_post(web::http::http_request req)
 {
-    printf("===== comming...\n");
+    printf_info(felog, "Request comming...\n");
     this->msg_handler->process(req);
 }
 
 void WebService::handle_get(web::http::http_request req)
 {
-    printf("===== comming...\n");
+    printf_info(felog, "Request comming...\n");
+    this->msg_handler->process(req);
 }
